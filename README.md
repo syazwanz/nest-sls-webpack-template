@@ -31,8 +31,10 @@
 ### 1. Install Packages
 
 ```bash
-$ yarn add @codegenie/serverless-express aws-lambda
-$ yarn add -D @types/aws-lambda serverless-offline serverless-webpack terser-webpack-plugin fork-ts-checker-webpack-plugin
+yarn add @codegenie/serverless-express aws-lambda
+```
+```bash
+yarn add -D @types/aws-lambda serverless-offline serverless-webpack terser-webpack-plugin fork-ts-checker-webpack-plugin
 ```
 
 ### 2. Add Serverless.yml
@@ -192,18 +194,19 @@ module.exports = {
 
 ## Running the app
 
+serverless offline
 ```bash
-# serverless offline
-$ serverless offline start
-
-# normal development server
-$ yarn start:dev
+serverless offline start
+```
+normal development server
+```bash
+yarn start:dev
 ```
 
 ## Deploying the app
 
 ```bash
-$ serverless deploy
+serverless deploy
 ```
 
 ## Reference
