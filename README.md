@@ -33,6 +33,7 @@
 ```bash
 yarn add @codegenie/serverless-express aws-lambda
 ```
+
 ```bash
 yarn add -D @types/aws-lambda serverless-offline serverless-webpack terser-webpack-plugin fork-ts-checker-webpack-plugin
 ```
@@ -40,6 +41,7 @@ yarn add -D @types/aws-lambda serverless-offline serverless-webpack terser-webpa
 ### 2. Add Serverless.yml
 
 ```yml
+# replace app_name
 service: app_name
 frameworkVersion: '3'
 
@@ -48,6 +50,7 @@ plugins:
   - serverless-offline
 
 custom:
+  config: ${file(./config/${self:provider.stage}.env.json)}
   webpack:
     includeModules: true
     forceExclude:
@@ -57,12 +60,30 @@ provider:
   name: aws
   deploymentMethod: direct
   runtime: nodejs20.x
-  stage: dev
-  region: ap-southeast-1
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'ap-southeast-1'}
+  deploymentBucket:
+    # replace bucket_name
+    name: bucket_name
+  environment: ${file(./config/${opt:stage, 'dev'}.env.json)}
+  # remove vpc if not needed
+  vpc:
+    securityGroupIds:
+      # replace security group id
+      - sg-xxx
+    subnetIds:
+      # replace subnet id
+      - subnet-xxx
+      - subnet-xxx
+      - subnet-xxx
 
 functions:
   api:
     handler: src/lambda.handler
+    # adjust memory, storage, and timeout according to the app's requirements.
+    memorySize: 2048
+    ephemeralStorageSize: 1024
+    timeout: 25
     events:
       - httpApi: '*'
 ```
@@ -192,13 +213,34 @@ module.exports = {
 };
 ```
 
+### 6. Update .gitignore
+
+```bash
+.serverless
+.webpack
+
+.env*
+*.env.json
+```
+
+### 7. Add env file
+
+```
+config/
+┣ dev.env.json
+┗ prod.env.json
+```
+
 ## Running the app
 
 serverless offline
+
 ```bash
 serverless offline start
 ```
+
 normal development server
+
 ```bash
 yarn start:dev
 ```
