@@ -95,7 +95,7 @@ export const handler: Handler = async (
 
 ### 4. Update tsconfig.json
 
-```json
+```js
 {
   "compilerOptions": {
     ...
