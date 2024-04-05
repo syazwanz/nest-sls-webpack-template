@@ -1,0 +1,25 @@
+service: nest-webpack
+frameworkVersion: '3'
+
+plugins:
+  - serverless-webpack
+  - serverless-offline
+
+custom:
+  webpack:
+    includeModules: true
+    forceExclude:
+      - aws-sdk
+
+provider:
+  name: aws
+  deploymentMethod: direct
+  runtime: nodejs20.x
+  stage: dev
+  region: ap-southeast-1
+
+functions:
+  api:
+    handler: src/lambda.handler
+    events:
+      - httpApi: '*'

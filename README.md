@@ -26,48 +26,188 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
-## Installation
+## Configurations
+
+### 1. Install Packages
 
 ```bash
-$ yarn install
+$ yarn add @codegenie/serverless-express aws-lambda
+$ yarn add -D @types/aws-lambda serverless-offline serverless-webpack terser-webpack-plugin fork-ts-checker-webpack-plugin
+```
+
+### 2. Add Serverless.yml
+
+```yml
+service: app_name
+frameworkVersion: '3'
+
+plugins:
+  - serverless-webpack
+  - serverless-offline
+
+custom:
+  webpack:
+    includeModules: true
+    forceExclude:
+      - aws-sdk
+
+provider:
+  name: aws
+  deploymentMethod: direct
+  runtime: nodejs20.x
+  stage: dev
+  region: ap-southeast-1
+
+functions:
+  api:
+    handler: src/lambda.handler
+    events:
+      - httpApi: '*'
+```
+
+### 3. Add lambda.ts
+
+```js
+import { NestFactory } from '@nestjs/core';
+import serverlessExpress from '@codegenie/serverless-express';
+import { Callback, Context, Handler } from 'aws-lambda';
+import { AppModule } from './app.module';
+
+let server: Handler;
+
+async function bootstrap(): Promise<Handler> {
+  const app = await NestFactory.create(AppModule);
+  await app.init();
+
+  const expressApp = app.getHttpAdapter().getInstance();
+  return serverlessExpress({ app: expressApp });
+}
+
+export const handler: Handler = async (
+  event: any,
+  context: Context,
+  callback: Callback,
+) => {
+  server = server ?? (await bootstrap());
+  return server(event, context, callback);
+};
+```
+
+### 4. Update tsconfig.json
+
+```json
+{
+  "compilerOptions": {
+    ...
+    "esModuleInterop": true
+  }
+}
+```
+
+### 5. Add webpack.config.js
+
+```js
+/* eslint-disable @typescript-eslint/no-var-requires */
+const webpack = require('webpack');
+const path = require('path');
+const slsw = require('serverless-webpack');
+const TerserPlugin = require('terser-webpack-plugin');
+const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
+
+const lazyImports = [
+  '@nestjs/microservices',
+  '@nestjs/microservices/microservices-module',
+  '@nestjs/websockets/socket-module',
+  '@nestjs/platform-express',
+  '@grpc/grpc-js',
+  '@grpc/proto-loader',
+  'kafkajs',
+  'mqtt',
+  'nats',
+  'ioredis',
+  'amqplib',
+  'amqp-connection-manager',
+  'pg-native',
+  'cache-manager',
+  'class-validator',
+  'class-transformer',
+];
+
+module.exports = {
+  mode: slsw.lib.webpack.isLocal ? 'development' : 'production',
+  devtool: 'source-map',
+  entry: slsw.lib.entries,
+  target: 'node',
+  resolve: {
+    extensions: ['.tsx', '.ts', '.js'],
+  },
+  output: {
+    libraryTarget: 'commonjs2',
+    path: path.join(__dirname, '.webpack'),
+    filename: '[name].js',
+  },
+  externals: {
+    // add package to be excluded in bundle, example:
+    // argon2: 'commonjs argon2',
+  },
+  module: {
+    rules: [
+      {
+        test: /\.ts$/,
+        loader: 'ts-loader',
+        options: {
+          // disable type checker - we will use it in fork plugin
+          transpileOnly: true,
+        },
+      },
+    ],
+  },
+  optimization: {
+    minimize: true,
+    minimizer: [
+      new TerserPlugin({
+        terserOptions: {
+          keep_classnames: true,
+        },
+      }),
+    ],
+  },
+  plugins: [
+    new ForkTsCheckerWebpackPlugin(),
+    new webpack.IgnorePlugin({
+      checkResource(resource) {
+        if (lazyImports.includes(resource)) {
+          try {
+            require.resolve(resource);
+          } catch (err) {
+            return true;
+          }
+        }
+        return false;
+      },
+    }),
+  ],
+};
 ```
 
 ## Running the app
 
 ```bash
-# development
-$ yarn run start
+# serverless offline
+$ serverless offline start
 
-# watch mode
-$ yarn run start:dev
-
-# production mode
-$ yarn run start:prod
+# normal development server
+$ yarn start:dev
 ```
 
-## Test
+## Deploying the app
 
 ```bash
-# unit tests
-$ yarn run test
-
-# e2e tests
-$ yarn run test:e2e
-
-# test coverage
-$ yarn run test:cov
+$ serverless deploy
 ```
 
-## Support
+## Reference
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://kamilmysliwiec.com)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](LICENSE).
+- https://www.brymartinez.blog/deploying-nestjs-to-lambda-using-webpack/
+- https://johnny.sh/blog/concise-guide-to-nestjs-on-lambda/
+- https://programoholic.medium.com/build-and-deploy-serverless-application-with-webpack-584163367390
