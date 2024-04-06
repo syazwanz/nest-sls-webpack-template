@@ -39,7 +39,7 @@ module.exports = {
   },
   externals: {
     // add package to be excluded in bundle, example:
-    argon2: 'commonjs argon2',
+    // argon2: 'commonjs argon2',
   },
   module: {
     rules: [

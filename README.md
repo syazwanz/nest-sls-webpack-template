@@ -31,7 +31,7 @@
 ### 1. Install Packages
 
 ```bash
-yarn add @codegenie/serverless-express aws-lambda
+yarn add @codegenie/serverless-express aws-lambda @nestjs/config
 ```
 
 ```bash
@@ -41,8 +41,8 @@ yarn add -D @types/aws-lambda serverless-offline serverless-webpack terser-webpa
 ### 2. Add Serverless.yml
 
 ```yml
-# replace app_name
-service: app_name
+# replace app-name
+service: app-name
 frameworkVersion: '3'
 
 plugins:
@@ -62,33 +62,47 @@ provider:
   runtime: nodejs20.x
   stage: ${opt:stage, 'dev'}
   region: ${opt:region, 'ap-southeast-1'}
-  deploymentBucket:
-    # replace bucket_name
-    name: bucket_name
   environment: ${file(./config/${opt:stage, 'dev'}.env.json)}
-  # remove vpc if not needed
-  vpc:
-    securityGroupIds:
-      # replace security group id
-      - sg-xxx
-    subnetIds:
-      # replace subnet id
-      - subnet-xxx
-      - subnet-xxx
-      - subnet-xxx
+  # adjust bucket & vpc as needed
+  # deploymentBucket:
+  #   name: bucket_name
+  # vpc:
+  #   securityGroupIds:
+  #     - sg-xxx
+  #   subnetIds:
+  #     - subnet-xxx
+  #     - subnet-xxx
+  #     - subnet-xxx
 
 functions:
   api:
-    handler: src/lambda.handler
-    # adjust memory, storage, and timeout according to the app's requirements.
-    memorySize: 2048
-    ephemeralStorageSize: 1024
-    timeout: 25
+    handler: dist/main.handler
+    # adjust memory, storage, and timeout as needed.
+    # memorySize: 2048
+    # ephemeralStorageSize: 1024
+    # timeout: 25
     events:
       - httpApi: '*'
 ```
 
-### 3. Add lambda.ts
+### 3. Update app.module.ts
+
+```js
+import { Module } from '@nestjs/common';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { ConfigModule } from '@nestjs/config';
+
+@Module({
+  // add config module to fetch env
+  imports: [ConfigModule.forRoot({ isGlobal: true })],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {}
+```
+
+### 4. Update main.ts
 
 ```js
 import { NestFactory } from '@nestjs/core';
@@ -98,7 +112,7 @@ import { AppModule } from './app.module';
 
 let server: Handler;
 
-async function bootstrap(): Promise<Handler> {
+async function bootstrapSLS(): Promise<Handler> {
   const app = await NestFactory.create(AppModule);
   await app.init();
 
@@ -106,17 +120,26 @@ async function bootstrap(): Promise<Handler> {
   return serverlessExpress({ app: expressApp });
 }
 
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  await app.listen(3000);
+}
+
 export const handler: Handler = async (
   event: any,
   context: Context,
   callback: Callback,
 ) => {
-  server = server ?? (await bootstrap());
+  server = server ?? (await bootstrapSLS());
   return server(event, context, callback);
 };
+
+if (process.env.NEST_ENV === 'HTTP') {
+  bootstrap();
+}
 ```
 
-### 4. Update tsconfig.json
+### 5. Update tsconfig.json
 
 ```js
 {
@@ -127,7 +150,7 @@ export const handler: Handler = async (
 }
 ```
 
-### 5. Add webpack.config.js
+### 6. Add webpack.config.js
 
 ```js
 /* eslint-disable @typescript-eslint/no-var-requires */
@@ -213,7 +236,7 @@ module.exports = {
 };
 ```
 
-### 6. Update .gitignore
+### 7. Update .gitignore
 
 ```bash
 .serverless
@@ -223,7 +246,7 @@ module.exports = {
 *.env.json
 ```
 
-### 7. Add env file
+### 8. Add env file
 
 ```
 config/
@@ -231,15 +254,35 @@ config/
 ┗ prod.env.json
 ```
 
-## Running the app
+### 9. Update package.json scripts
 
-serverless offline
-
-```bash
-serverless offline start
+```json
+{
+  "start:sls": "nest build && serverless offline start",
+  "deploy:dev": "nest build && serverless deploy -s dev",
+  "deploy:prod": "nest build && serverless deploy -s prod"
+}
 ```
 
-normal development server
+## Running the app
+
+You can run the app either by serverless offline or normal server.
+
+###### serverless offline
+
+```bash
+yarn start:sls
+```
+
+###### normal server
+
+Make sure to add this value to .env file
+
+```bash
+NEST_ENV = "HTTP"
+```
+
+then run
 
 ```bash
 yarn start:dev
@@ -248,7 +291,7 @@ yarn start:dev
 ## Deploying the app
 
 ```bash
-serverless deploy
+yarn deploy:dev
 ```
 
 ## Reference
@@ -256,3 +299,4 @@ serverless deploy
 - https://www.brymartinez.blog/deploying-nestjs-to-lambda-using-webpack/
 - https://johnny.sh/blog/concise-guide-to-nestjs-on-lambda/
 - https://programoholic.medium.com/build-and-deploy-serverless-application-with-webpack-584163367390
+- https://www.prisma.io/docs/orm/prisma-client/deployment/serverless/deploy-to-aws-lambda
