@@ -256,3 +256,4 @@ serverless deploy
 - https://www.brymartinez.blog/deploying-nestjs-to-lambda-using-webpack/
 - https://johnny.sh/blog/concise-guide-to-nestjs-on-lambda/
 - https://programoholic.medium.com/build-and-deploy-serverless-application-with-webpack-584163367390
+- https://www.prisma.io/docs/orm/prisma-client/deployment/serverless/deploy-to-aws-lambda
